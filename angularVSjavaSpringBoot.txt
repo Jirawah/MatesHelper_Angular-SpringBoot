@@ -9,7 +9,7 @@
 │   │   │   │   └── user/
 │   │   │   │       ├── user.component.ts       # Composant Angular
 │   │   │   │       ├── user.component.html     # Template HTML
-│   │   │   │       └── user.component.scss      # Style SCSS
+│   │   │   │       └── user.component.scss     # Style SCSS
 │   │   │   ├── services/
 │   │   │   │   └── user.service.ts             # Service HTTP vers API Spring
 │   │   │   ├── models/
