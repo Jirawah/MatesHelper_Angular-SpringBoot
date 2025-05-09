@@ -130,3 +130,163 @@ Pourquoi cette structure est importante :
     - Le contrôleur ne fait que recevoir la requête et rediriger vers le bon service.
     - Le service Java gère toute la logique métier (ex : vérifier qu’un email est unique, etc.).
     - Le repository fait uniquement le lien avec la base de données (via Spring Data JPA).
+
+
+
+
+
+### CONNEXION ANGULAR AVEC JAVA SB ###
+
+Angular ne se connecte pas directement à Spring Boot, il consomme les API exposées par les @RestController de Spring Boot.
+    Autrement dit :
+
+        - Spring Boot expose des endpoints HTTP grâce aux @RestController (par exemple, GET /api/patients),
+        - Angular envoie des requêtes HTTP (via HttpClient) pour consommer ces endpoints,
+        - Et la communication se fait par des API RESTful (JSON en général).
+
+    En résumé :
+
+        - @RestController = Point d’entrée côté backend pour les requêtes HTTP.
+        - HttpClient (Angular) = Client HTTP qui fait des appels vers ces points d’entrée.
+
+
+
+1. Créer le Backend Spring Boot (API REST)
+
+    Exemple de contrôleur REST :
+
+        @RestController
+        @RequestMapping("/api/patients")
+        public class PatientController {
+
+            @GetMapping
+            public List<String> getAllPatients() {
+                return List.of("Jean Dupont", "Marie Curie");
+            }
+
+            @PostMapping
+            public String addPatient(@RequestBody String patientName) {
+                // Sauvegarde en base fictive
+                return "Patient ajouté : " + patientName;
+            }
+        }
+
+Endpoint GET : http://localhost:8080/api/patients
+Endpoint POST : http://localhost:8080/api/patients
+
+
+
+2. Configurer CORS dans Spring Boot (pour accepter les appels du frontend)
+
+        @Configuration
+        public class CorsConfig {
+            @Bean
+            public WebMvcConfigurer corsConfigurer() {
+                return new WebMvcConfigurer() {
+                    @Override
+                    public void addCorsMappings(CorsRegistry registry) {
+                        registry.addMapping("/api/**")
+                                .allowedOrigins("http://localhost:4200") // Port de l'app Angular
+                                .allowedMethods("GET", "POST", "PUT", "DELETE");
+                    }
+                };
+            }
+        }
+
+
+
+3. Créer le Frontend Angular
+
+    Exemple de service pour consommer les endpoints :
+
+        import { Injectable } from '@angular/core';
+        import { HttpClient } from '@angular/common/http';
+        import { Observable } from 'rxjs';
+
+        @Injectable({
+        providedIn: 'root'
+        })
+
+        export class PatientService {   
+            private apiUrl = 'http://localhost:8080/api/patients';
+
+            constructor(private http: HttpClient) {}
+
+            getPatients(): Observable<string[]> {
+            return this.http.get<string[]>(this.apiUrl);
+            }
+
+            addPatient(name: string): Observable<string> {
+            return this.http.post<string>(this.apiUrl, name);
+            }
+        }
+
+
+    Exemple de consommation dans un composant :
+
+        import { Component, OnInit } from '@angular/core';
+        import { PatientService } from 'src/app/services/patient.service';
+
+        @Component({
+            selector: 'app-patient-list',
+            template: `
+            <h2>Liste des patients</h2>
+            <ul>
+            <li *ngFor="let patient of patients">{{ patient }}</li>
+            </ul>
+            <input [(ngModel)]="newPatient" placeholder="Nom du patient" />
+            <button (click)="addPatient()">Ajouter</button>
+            `
+        })
+
+        export class PatientListComponent implements OnInit {
+            patients: string[] = [];
+            newPatient: string = '';
+
+            constructor(private patientService: PatientService) {}
+
+            ngOnInit() {
+                this.loadPatients();
+            }
+
+            loadPatients() {
+                this.patientService.getPatients().subscribe(data => this.patients = data);
+            }
+
+            addPatient() {
+                this.patientService.addPatient(this.newPatient).subscribe(response => {
+                console.log(response);
+                this.loadPatients();
+                });
+            }
+        }
+
+
+
+4. Ne pas oublier d’importer HttpClientModule dans app.module.ts :
+
+    import { HttpClientModule } from '@angular/common/http';
+    @NgModule({
+        declarations: [/* components */],
+        imports: [BrowserModule, HttpClientModule],
+        bootstrap: [/* AppComponent */]
+    })
+    export class AppModule {}
+
+
+
+5. Démarrer les deux projets
+
+    Backend Spring Boot :
+        mvn spring-boot:run
+
+    Frontend Angular :
+        ng serve
+
+
+
+En résumé :
+
+    - Le frontend utilise HttpClient pour faire des requêtes HTTP vers les endpoints du backend.
+    - Le backend expose des endpoints REST via @RestController.
+    - CORS doit être configuré pour permettre la communication entre deux serveurs différents.
